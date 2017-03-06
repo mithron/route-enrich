@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Route Enrich</title>
+    
+    	<meta charset="utf-8">
+	<meta property="og:title" content="Route Enrich"/>
+    <meta property="og:type" content="website"/>
+    <meta property="og:url" content="http://routes.mithron.me"/>
+    <meta property="og:image" content="http://routes.mithron.me/project-cover.png"/>
+    <meta property="og:site_name" content="Дополнение маршрутов открытыми данными из различных источников."/>
+    <meta property="og:description"
+         content='На карте выберите основным точки маршрута - и получите описание объектов поблизости от него!'/>
+  
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.0.1/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.0.1/dist/leaflet.js"></script>
+  
+  <script src='https://unpkg.com/leaflet.gridlayer.googlemutant@latest/Leaflet.GoogleMutant.js'></script>
+  
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+  
+  <style>
+  #container-all {width:100%; height: 100%; 
+    display: flex; flex-direction: column; flex-wrap: nowrap; justify-content: space-between;} 
+  #container { width: 100%; height: 100%; 
+    display: flex; flex-direction: row; flex-wrap: nowrap; justify-content: space-between;margin:auto;}
+  #map { width: 50%; height: 95%;  top: 2px; left: 2px; margin: auto; }
+  #pano { width: 35%; height: 99%;  top: 2px; margin: auto; }
+  #osm {width: 12%; height: 100%; top: 2px;  margin: auto; }
+ #licenses { width: 99%; height: 10px;  bottom: 0px; left: 2px; margin: auto; }
+  .info { padding: 6px 8px; font: 14px/16px Arial, Helvetica, sans-serif; background: white;
+    background: rgba(255,255,255,0.7); box-shadow: 0 0 15px rgba(0,0,0,0.2); border-radius: 5px; }
+    
+  </style>
+
+
+</head>
+  <body>
+    <div id='container-all'>
+    <div id="container">
+      <div id="map" class='info'></div>
+      <div id="pano"> <p>Выберите на карте начальную, промежуточные и конечную точки маршрута. </p> </div>
+      <div id='osm'> </div>
+    </div>
+    <div id="licenses">В проекте использованы данные Wikipedia, Openstreetmap и Google maps API.</div>
+  </div>
+  </body>
+  
+  <script>
+  
+  var panoContent = [];
+  var markers = [];
+  var map;
+  
+  var resize = function () {
+		var $all = $('#container');
+		$all.height($(window).height() - $('div.navbar').outerHeight());
+	//	if (map) {
+	//		map.invalidateSize();
+	//	}
+	};
+	
+	$(window).on('resize', function () {
+		resize();
+	});
+	resize();
+ 
+ function initMap() {
+        map = new google.maps.Map(document.getElementById('map'), {
+          zoom: 7,
+          center: {lat: 55.6799785, lng: 37.5717403}  // Moscow 55.6799785,37.5717403
+        });
+        
+        
+        var directionsService = new google.maps.DirectionsService;
+        var directionsDisplay = new google.maps.DirectionsRenderer({
+          draggable: true,
+          map: map
+        });
+        
+        var waypoints = [];
+        
+        map.addListener('click', function(e) {
+            
+            if (waypoints.length > 2){ 
+                var marker = new google.maps.Marker({
+                    position: e.latLng,
+                    map:map
+            });
+                
+            }
+            
+            waypoints.push({
+              location: e.latLng,
+              stopover: true
+            })
+           
+            if (waypoints.length > 1){
+                displayRoute(waypoints[0].location, waypoints[1].location, waypoints.slice(2), directionsService,
+                directionsDisplay);
+            }
+        });
+        
+        directionsDisplay.addListener('directions_changed', function() {
+          for (i=0; i< markers.length; i++) {
+                markers[i].setMap(null);  
+          }
+          markers = [];
+          directions = directionsDisplay.getDirections();
+          getNewData(directions);
+          getOverpass(directions);
+          
+        });
+
+        
+      }
+
+      function displayRoute(origin, destination, waypoints, service, display) {
+        service.route({
+          origin: origin,
+          destination: destination,
+          waypoints:waypoints,
+          travelMode: 'DRIVING',
+          optimizeWaypoints: true,
+          avoidTolls: true
+        }, function(response, status) {
+          if (status === 'OK') {
+            display.setDirections(response);
+          } else {
+            alert('Could not display directions due to: ' + status);
+            location.reload();
+          }
+        });
+      }
+
+      function getNewData(result) {
+        var myroute = result.routes[0];
+        for (var i = 0; i < myroute.legs.length; i++) {
+          for (var j = 0; j < myroute.legs[i].steps.length; j++ ){
+            for (var k = 0; k < myroute.legs[i].steps[j].lat_lngs.length; k++ ){
+            var start = myroute.legs[i].steps[j].lat_lngs[k];
+            var coords = start.lat() + '|' + start.lng() ;
+            $.ajax({
+                url: 'https://ru.wikipedia.org/w/api.php',
+                data: { action: 'query', list: 'geosearch', gsradius: '1000',
+                        gscoord: coords,
+                        format: 'json' },
+                dataType: 'jsonp',
+                success: processWikiGeoResult
+            });
+          };    
+        }};
+    }; 
+    
+   function getOverpass(result){
+      var myroute = result.routes[0];
+      for (var i = 0; i < myroute.legs.length; i++) {
+        for (var j = 0; j < myroute.legs[i].steps.length; j++ ){
+          for (var k = 0; k < myroute.legs[i].steps[j].lat_lngs.length; k++ ){
+            var start = myroute.legs[i].steps[j].lat_lngs[k];
+            var coords = start.lat() + ',' + start.lng() ;
+            $.ajax({
+                url: 'https://overpass-api.de/api/interpreter?' +
+                'data=[out:json][timeout:60];' + 
+               //'area["boundary"~"administrative"]["name"~"Berlin"];node(area)["amenity"~"school"];out;',
+                '(node(around:500,' + coords +')["name"~".*"]);out tags geom;relation(around:500,' + coords +')["name"~".*"];',
+                dataType: 'json',
+                success: parseOver
+            }); //end q
+          };    
+        }};
+    }; 
+   
+   
+   function parseOver(overResult){
+      for( var i=0; i< overResult.elements.length; i++){
+        console.log(overResult.elements[i]);
+        $('#osm').append('<p>'+overResult.elements[i].lat +','+ 
+                          overResult.elements[i].lon +': '+ overResult.elements[i].tags.name + '</p>'); 
+        
+      }
+      
+   }
+    
+   function processWikiGeoResult(apiResult){
+     for (var i = 0; i < apiResult.query.geosearch.length; i++){
+         if ($.inArray(apiResult.query.geosearch[i].title, panoContent) == -1 ) {
+             
+            panoContent.push(apiResult.query.geosearch[i].title);
+            console.log(apiResult.query.geosearch[i]);
+            marker = new google.maps.Marker({
+                              position: new google.maps.LatLng(apiResult.query.geosearch[i].lat,  apiResult.query.geosearch[i].lon), 
+                              title: apiResult.query.geosearch[i].title,
+                              icon: 'http://maps.google.com/mapfiles/ms/icons/yellow-dot.png', 
+                              url: '#' +apiResult.query.geosearch[i].pageid,
+                              map:map
+       });
+            marker.addListener('click', function scrollTo(e) {
+              console.log(e);
+              $(document.body).animate({'scrollTop':   $('#'+apiResult.query.geosearch[i].pageid).offset().top}, 2000);
+            });
+            markers.push(marker);
+            
+        $.ajax({
+                url: 'https://ru.wikipedia.org/w/api.php',
+                data: { action: 'query', prop: 'extracts', exchars:'1500', titles: apiResult.query.geosearch[i].title, 
+                        redirects:1, indexpageids: 1, exintro: 1, 
+                        format: 'json' },
+                dataType: 'jsonp',
+                success: processWikiHTMLResult
+     }); 
+  }}}
+    
+    function processWikiHTMLResult(apiResult){
+        for (var i = 0; i < apiResult.query.pageids.length; i++){
+            
+          $('#pano').append('<p><a name="#'+apiResult.query.pageids[i]+'"></a>'+apiResult.query.pages[apiResult.query.pageids[i]].title+'</p>');
+          $('#pano').append('<p>'+apiResult.query.pages[apiResult.query.pageids[i]].extract+'</p>');
+     }
+  }
+    
+      
+    </script>
+    <script async defer
+    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDbNKIGr9kLAllB7V79mCkqoBLY7Vqd72I&callback=initMap">
+    </script>
+    
+ 
+<script>
+  // get nearest crashes from api
+  
+  
+ /*
+     
+     var prom = $.getJSON(url, 
+                {limit:20, offset:0, region:region})
+                .done(function(data) {
+                  var dist = 10000;
+                  var counter = 0;
+                  $.each(data.items, function(count, item) {
+                      var newDist = map.distance([lat,lng], [item.em_place_latitude, item.em_place_longitude])
+                      if (newDist<dist) {
+                        dist = newDist;
+                        counter = count;
+                      }});
+                  setCrashDiv(Math.round(dist), data.items[counter]);
+                });
+
+    //}
+
+  }
+  
+  
+  
+  function onPanoChange () {
+   
+    newLatlng = panorama.getPosition();
+    
+    mapUpdate(newLatlng.lat(), newLatlng.lng());
+  } */
+  
+  </script>
+</html>
