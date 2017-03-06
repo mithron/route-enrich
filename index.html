@@ -6,16 +6,13 @@
     	<meta charset="utf-8">
 	<meta property="og:title" content="Route Enrich"/>
     <meta property="og:type" content="website"/>
-    <meta property="og:url" content="http://routes.mithron.me"/>
-    <meta property="og:image" content="http://routes.mithron.me/project-cover.png"/>
+    <meta property="og:url" content="http://route.mithron.me"/>
+    <meta property="og:image" content="http://route.mithron.me/project-cover.png"/>
     <meta property="og:site_name" content="Дополнение маршрутов открытыми данными из различных источников."/>
     <meta property="og:description"
          content='На карте выберите основным точки маршрута - и получите описание объектов поблизости от него!'/>
   
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.0.1/dist/leaflet.css" />
-  <script src="https://unpkg.com/leaflet@1.0.1/dist/leaflet.js"></script>
   
-  <script src='https://unpkg.com/leaflet.gridlayer.googlemutant@latest/Leaflet.GoogleMutant.js'></script>
   
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
   
@@ -225,39 +222,4 @@
     src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDbNKIGr9kLAllB7V79mCkqoBLY7Vqd72I&callback=initMap">
     </script>
     
- 
-<script>
-  // get nearest crashes from api
-  
-  
- /*
-     
-     var prom = $.getJSON(url, 
-                {limit:20, offset:0, region:region})
-                .done(function(data) {
-                  var dist = 10000;
-                  var counter = 0;
-                  $.each(data.items, function(count, item) {
-                      var newDist = map.distance([lat,lng], [item.em_place_latitude, item.em_place_longitude])
-                      if (newDist<dist) {
-                        dist = newDist;
-                        counter = count;
-                      }});
-                  setCrashDiv(Math.round(dist), data.items[counter]);
-                });
-
-    //}
-
-  }
-  
-  
-  
-  function onPanoChange () {
-   
-    newLatlng = panorama.getPosition();
-    
-    mapUpdate(newLatlng.lat(), newLatlng.lng());
-  } */
-  
-  </script>
 </html>
